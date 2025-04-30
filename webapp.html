@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Table of Streamer Stats</title>
+</head>
+<body>
+    <h1>Upload CSV File:</h1>
+    <input type="file" id="fileInput" accept=".csv" />
+    <button id="uploadButton">Upload to Server</button>
+
+    <h2>Table Preview:</h2>
+    <table id="dataTable" border="1"></table>
+
+    <script>
+    let parsedData = [];
+
+    document.getElementById('fileInput').addEventListener('change', handleFile, false);
+    document.getElementById('uploadButton').addEventListener('click', uploadData, false);
+
+    function handleFile(e) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const text = event.target.result;
+            parsedData = parseCSV(text);
+            parsedData = addTotalRevenue(parsedData);
+            renderTable(parsedData);
+        };
+        reader.readAsText(file);
+    }
+
+    function parseCSV(text) {
+        const rows = text.split('\n').map(row => row.trim()).filter(row => row.length > 0);
+        const headers = rows.shift().split(',').map(h => h.trim());
+
+        return rows.map(row => {
+            const values = row.split(',').map(v => v.trim());
+            let obj = {};
+            headers.forEach((header, index) => {
+                obj[header] = values[index] || '';
+            });
+            return obj;
+        });
+    }
+
+    function addTotalRevenue(data) {
+        const revenueFields = [
+            'Sub Revenue', 'Prime Revenue', 'Gifted Subs Revenue', 'Multi-Month Gifted Subs Revenue',
+            'Bits Revenue', 'Ad Revenue', 'Turbo Revenue', 'Game Sales Revenue',
+            'Extensions Revenue', 'Bounties Revenue', 'Other Bits Interactions Revenue', 'Hype Chat Revenue'
+        ];
+
+        return data.map(row => {
+            let total = 0;
+            revenueFields.forEach(field => {
+                const value = parseFloat(row[field]) || 0;
+                total += value;
+            });
+            row['Total Revenue'] = total.toFixed(2);
+            return row;
+        });
+    }
+
+    function renderTable(data) {
+        const table = document.getElementById('dataTable');
+        table.innerHTML = '';
+
+        if (data.length === 0) return;
+
+        const headers = Object.keys(data[0]);
+        const headerRow = table.insertRow();
+        headers.forEach(header => {
+            const th = document.createElement('th');
+            th.innerText = header;
+            headerRow.appendChild(th);
+        });
+
+        data.forEach(row => {
+            const tr = table.insertRow();
+            headers.forEach(header => {
+                const td = tr.insertCell();
+                td.innerText = row[header];
+            });
+        });
+    }
+
+    function uploadData() {
+        fetch('/upload', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(parsedData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Upload successful!');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    </script>
+</body>
+</html>
